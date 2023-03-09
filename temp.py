@@ -284,6 +284,9 @@ f=FreqDist(brown.words())
 k=get_keywords(nlp,text,10,s2v,f,10)
 sentences=tokenize_sentences(text)
 ksm=get_sentences_for_keyword(k,sentences)
+for lund in ksm.keys():
+    text_snippet = " ".join(ksm[lund][:3])
+    ksm[lund] = text_snippet
 tokenizer = T5Tokenizer.from_pretrained('t5-base')
 model = T5ForConditionalGeneration.from_pretrained('Parth/result')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
