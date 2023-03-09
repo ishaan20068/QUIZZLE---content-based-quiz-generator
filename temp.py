@@ -3,10 +3,15 @@ from flashtext import KeywordProcessor
 from sense2vec import Sense2Vec
 from collections import OrderedDict
 from nltk.tokenize import sent_tokenize
+from nltk import FreqDist
+from nltk.corpus import brown
 from similarity.normalized_levenshtein import NormalizedLevenshtein
 from nltk.corpus import stopwords
+import torch
+from transformers import T5ForConditionalGeneration,T5Tokenizer
 import pke.unsupervised
 import torch
+import spacy
 
 def MCQs_available(word,s2v):
     '''
@@ -183,6 +188,10 @@ def get_nouns_multipartite(text):
 
 
 def get_phrases(doc):
+    '''
+    Gives the longest phrasal nouns of a text stored in a dictionary format with the 
+    phrases being the keys and their count being the value
+    '''
     phrases={}
     for np in doc.noun_chunks:
         phrase =np.text
@@ -221,6 +230,7 @@ def generate_questions_mcq(keyword_sent_mapping,device,tokenizer,model,sense2vec
     answers = keyword_sent_mapping.keys()
     for answer in answers:
         txt = keyword_sent_mapping[answer]
+        print(txt)
         context = "context: " + txt
         text = context + " " + "answer: " + answer + " </s>"
         batch_text.append(text)
@@ -267,5 +277,16 @@ text+="from 250 bce to 350 ce in Alexandria is known as the Silver Age, also the
 text+="Alexandrian Age. This was a time when mathematicians were discovering many ideas "
 text+="that led to our current conception of mathematics. The era is considered silver "
 text+="because it came after the Golden Age, a time of great development in the field "
-text+="of mathematics. This Golden Age encompasses the lifetime of Euclid"
-print(get_nouns_multipartite(text))
+text+="of mathematics. This Golden Age encompasses the lifetime of Euclid."
+nlp = spacy.load('en_core_web_md')
+doc = nlp(text)
+f=FreqDist(brown.words())
+k=get_keywords(nlp,text,10,s2v,f,10)
+sentences=tokenize_sentences(text)
+ksm=get_sentences_for_keyword(k,sentences)
+tokenizer = T5Tokenizer.from_pretrained('t5-base')
+model = T5ForConditionalGeneration.from_pretrained('Parth/result')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+final=generate_questions_mcq(ksm,device,tokenizer,model,s2v)
+print(final)
