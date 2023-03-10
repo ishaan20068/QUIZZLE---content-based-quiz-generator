@@ -26,16 +26,13 @@ def edits(token):
     '''
     takes in a string and returns all the possible strings with an edit distance of one 
     '''
-    alphabets_and_punctuations = "abcdefghijklmnopqrstuvwxyz " + string.punctuation
-    token_split = []
-
+    alphabets_and_punctuations = string.ascii_lowercase + " " + string.punctuation
+    
+    final_tokens = []
     for i in range(len(token)+1):    # splits token into all possible pairs of left and right substrings
         left = token[:i]
         right = token[i:]
-        token_split.append((left, right))
-
-    final_tokens = []
-    for left, right in token_split:
+        
         if len(right) != 0:     # list of words by deleting each non-empty right substring of a given input word
             fin_token = left + right[1:]
             final_tokens.append(fin_token)
