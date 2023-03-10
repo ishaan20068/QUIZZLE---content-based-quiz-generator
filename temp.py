@@ -22,50 +22,38 @@ def MCQs_available(word,s2v):
     return (not (sense==None))
 
 
-def edits(word):
-    '''takes in a string and returns all the possible strings with an edit distance of one'''
-    ''' string.punctuation --> is a pre-initialized string  used as string contant and it returns all the sets of punctuation'''
+def edits(token):
+    '''
+    takes in a string and returns all the possible strings with an edit distance of one 
+    '''
+    alphabets_and_punctuations = "abcdefghijklmnopqrstuvwxyz " + string.punctuation
+    token_split = []
+
+    for i in range(len(token)+1):
+        left = token[:i]
+        right = token[i:]
+        token_split.append((left, right))
+
+    final_tokens = []
+    for left, right in token_split:
+        if len(right) != 0:
+            fin_token = left + right[1:]
+            final_tokens.append(fin_token)
+
+        if len(right) > 1:
+            fin_token = left + right[1] + right[0] + right[2:]
+            final_tokens.append(fin_token)
+        
+        if len(right) != 0:
+            for alpha_punct in alphabets_and_punctuations:
+                fin_token = left + alpha_punct + right[1:]
+                final_tokens.append(fin_token)
+        
+        for alphabet in alphabets_and_punctuations:
+            fin_token = left + alphabet + right
+            final_tokens.append(fin_token)
     
-    '''alph_punc --> storing all the alphabets and sets of punctuation( combiningly )'''
-    alph_punc=string.ascii_lowercase+" "+string.punctuation
-    '''word_split --> list of tuple storing the splitting of word into left and right part around a given pivot  
-       For Example : "a b" 
-       word_split stores : [('','a b'),('a',' b'),('a ','b'),('a b','')]'''
-    size=len(word)
-    word_split=[]
-    for j in range(size+1):
-        left=word[:j]
-        right=word[j:]
-        word_split.append((left,right))    
-    ''' del_word --> list of word by deleting the first character of right substring but right substring must be 
-    non-empty '''
-    del_word=[]
-    for left,right in word_split:
-        if(len(right)!=0):
-            fin_word=left+right[1:]
-            del_word.append(fin_word)
-    '''adj_word --> list of words by swapping the adjacent character in every non-empty  right substring of a given 
-    input word . '''
-    adj_word=[]
-    for left,right in word_split: 
-        if(len(right)>1):
-            fin_word=left+right[1]+right[0]+right[2:]
-            adj_word.append(fin_word)
-    '''rep_word --> list of words by substituting all available letters from a predetermined set of letters for each character
-    in each non-empty right-side substring of a given input word'''
-    rep_word=[]
-    for left,right in word_split:
-        if(len(right)!=0):
-            for i in alph_punc:
-                fin_word=left+i+right[1:]
-                rep_word.append(fin_word)
-    ''' ins_word --> list of word by substituting all available letters from a ppredetermined '''
-    ins_word=[]
-    for left,right in word_split:
-        for alphabet in alph_punc:
-            fin_word=left+alphabet+right
-            ins_word.append(fin_word)
-    return set(del_word+adj_word+rep_word+ins_word) 
+    return set(final_tokens)
 
 
 def sense2vec_get_words(word,s2v):
