@@ -12,6 +12,7 @@ from transformers import T5ForConditionalGeneration,T5Tokenizer
 import pke.unsupervised
 import torch
 import spacy
+import re
 
 def MCQs_available(word,s2v):
     '''
@@ -53,44 +54,50 @@ def edits(token):
     return set(final_tokens)
 
 
-def sense2vec_get_words(word,s2v):
+def sense2vec_get_words(token, sense):
     '''
     Takes a word and returns all the words in the database that are similar to the given word
     with the same sense. In case of multiple words it returns at most 15 words ordered in 
     descending order by their closeness. The best match word comes before.
     '''
-    output = []
-    word_preprocessed =  word.translate(word.maketrans("","", string.punctuation))
-    word_preprocessed = word_preprocessed.lower()
-    word_edits = edits(word_preprocessed)
-    word = word.replace(" ", "_")
-    sense = s2v.get_best_sense(word)
-    if sense==None:
-        return None,"None"
-    most_similar = s2v.most_similar(sense, n=15)
-    compare_list = [word_preprocessed]
-    for each_word in most_similar:
-        append_word = ((each_word[0].split("|")[0].replace("_", " ")).strip()).lower()
-        append_word = append_word.translate(append_word.maketrans("","", string.punctuation))
-        if append_word not in compare_list and word_preprocessed not in append_word and append_word not in word_edits:
-            output.append(append_word.title())
-            compare_list.append(append_word)
-    out = list(OrderedDict.fromkeys(output))
+    result = []
+    str_wo_punc =  re.sub(r'[^\w\s]','', token).lower()
+    w_edit = edits(str_wo_punc)
+    token = token.replace(" ", "_")
+    sense = sense.get_best_sense(token)
+
+    if sense == None:
+        return None, "None"
+    
+    sim_words = sense.sim_words(sense, n = 15)
+    cmp_lst = [str_wo_punc]
+
+    for word in sim_words:
+        temp = word[0].split("|")[0].replace("_", " ")
+        temp = temp.strip()
+        temp = temp.lower()
+        temp = re.sub(r'[^\w\s]','', temp)
+        if temp not in cmp_lst and str_wo_punc not in temp and temp not in w_edit:
+            result.append(temp.title())
+            cmp_lst.append(temp)
+    
+    out = list(OrderedDict.fromkeys(result))
     print(out)
-    return out,"sense2vec"
+
+    return out, "sense2vec"
 
 
 def tokenize_sentences(text):
-    ''' tokenize_sentences --> function takes text as a input string and performs string tokenization on it i.e
-    divide it into individual sentence '''
-    #  print(sent_tokenize(text))
-    '''sent_tokenize() --> split the text into individual sentences'''
-    sent= sent_tokenize(text)
-    ''' fin_sen() --> storing those sentence having length greater than 20 /'''
-    fin_sent=[]
+    ''' 
+    function takes text as a input string and performs string tokenization on it
+    and returns the list of sentences
+    '''
+    sent = sent_tokenize(text)
+    fin_sent = []
     for i in sent:
-        if(len(i)>20):
+        if len(i) > 20:
             fin_sent.append(i)
+    
     return fin_sent
 
 
@@ -102,6 +109,7 @@ def is_far(words_list,currentword,threshold):
     min_score=1000000000
     for word in words_list:
         min_score=min(min_score,NormalizedLevenshtein().distance(word.lower(),currentword.lower()))
+
     return min_score>=threshold
 
 
