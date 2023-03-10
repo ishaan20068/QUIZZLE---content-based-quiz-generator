@@ -102,20 +102,6 @@ def tokenize_sentences(text):
     return fin_sent
 
 
-def tokenize_sentences(text):
-    ''' tokenize_sentences --> function takes text as a input string and performs string tokenization on it i.e
-    divide it into individual sentence '''
-    #  print(sent_tokenize(text))
-    '''sent_tokenize() --> split the text into individual sentences'''
-    sent= sent_tokenize(text)
-    ''' fin_sen() --> storing those sentence having length greater than 20 /'''
-    fin_sent=[]
-    for i in sent:
-        if(len(i)>20):
-            fin_sent.append(i)
-    return fin_sent
-
-
 def is_far(words_list,currentword,threshold):
     '''
     Calculates the normalized edit distance between the currentword and elements of words_list.
