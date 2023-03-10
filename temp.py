@@ -29,27 +29,27 @@ def edits(token):
     alphabets_and_punctuations = "abcdefghijklmnopqrstuvwxyz " + string.punctuation
     token_split = []
 
-    for i in range(len(token)+1):
+    for i in range(len(token)+1):    # splits token into all possible pairs of left and right substrings
         left = token[:i]
         right = token[i:]
         token_split.append((left, right))
 
     final_tokens = []
     for left, right in token_split:
-        if len(right) != 0:
+        if len(right) != 0:     # list of words by deleting each non-empty right substring of a given input word
             fin_token = left + right[1:]
             final_tokens.append(fin_token)
 
-        if len(right) > 1:
+        if len(right) > 1:      # list of words by swapping the adjacent character in every non-empty right substring of a given word
             fin_token = left + right[1] + right[0] + right[2:]
             final_tokens.append(fin_token)
         
-        if len(right) != 0:
+        if len(right) != 0:     # list of words by replacing each character in every non-empty right substring of a given word
             for alpha_punct in alphabets_and_punctuations:
                 fin_token = left + alpha_punct + right[1:]
                 final_tokens.append(fin_token)
         
-        for alphabet in alphabets_and_punctuations:
+        for alphabet in alphabets_and_punctuations:     # list of words by inserting each character in every possible position of every non-empty right substring of a given word
             fin_token = left + alphabet + right
             final_tokens.append(fin_token)
     
