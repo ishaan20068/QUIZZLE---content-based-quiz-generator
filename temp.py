@@ -120,109 +120,127 @@ def is_far(words_list,currentword,threshold):
     return min_score>=threshold
 
 
-def get_sentences_for_keyword(keywords, sentences):
-    '''
-    Given some keywords and a set of sentences, it returns a dictionary where the keys are
-    the keywords and for each key, the elements are the sentences in which that key is present
-    '''
-    keyword_processor = KeywordProcessor()
-    keyword_sentences = {}
-    for word in keywords:
-        word = word.strip()
-        keyword_sentences[word] = []
-        keyword_processor.add_keyword(word)
-    for sentence in sentences:
-        keywords_found = keyword_processor.extract_keywords(sentence)
-        for key in keywords_found:
-            keyword_sentences[key].append(sentence)
+def get_sentences_for_keyword(k, s):
+    kp = KeywordProcessor()
+    ans = {}
+    #initializing dictionary
+    for i in k:
+        i = i.strip()
+        kp.add_keyword(i)
+        ans[i] = []
+    #extracting
+    for i in s:
+        ext = kp.extract_keywords(i)
+        for j in ext:
+            ans[j].append(i)
+    #sorting and storing
+    for i in ans.keys():
+        ans[i] = sorted(ans[i], key=len, reverse=True)
+    #deleting unnecessary keys
+    dele=[k for k in ans.keys() if len(ans[k])==0]
+    for i in dele:
+      del ans[i]
 
-    for key in keyword_sentences.keys():
-        values = keyword_sentences[key]
-        values = sorted(values, key=len, reverse=True)
-        keyword_sentences[key] = values
-
-    delete_keys = []
-    for k in keyword_sentences.keys():
-        if len(keyword_sentences[k]) == 0:
-            delete_keys.append(k)
-    for del_key in delete_keys:
-        del keyword_sentences[del_key]
-
-    return keyword_sentences
+    return ans
 
 
-def filter_phrases(phrase_keys,max):
-    filtered_phrases =[]
-    if len(phrase_keys)>0:
-        filtered_phrases.append(phrase_keys[0])
-        for ph in phrase_keys[1:]:
-            if is_far(filtered_phrases,ph,0.7):
-                filtered_phrases.append(ph)
-            if len(filtered_phrases)>=max:
-                break
-    return filtered_phrases
+def filter_phrases(ph_keys, max_phrases):
+    """
+    Filter a list of phrases to a maximum number based on a scoring metric.
+
+    Args:
+        ph_keys (list): A list of phrases to filter.
+        max_phrases (int): The maximum number of phrases to return.
+
+    Returns:
+        list: The filtered list of phrases, containing at most max_phrases phrases.
+    """
+    ans = [ph_keys[0]] if len(ph_keys) > 0 else []
+    for phrase in ph_keys[1:]:
+        if is_far(ans, phrase, 0.71) and len(ans) < max_phrases:
+            ans.append(phrase)
+        if len(ans) >= max_phrases:
+            break
+    return ans
+
 
 
 def get_nouns_multipartite(text):
-    '''
-    gives best 10 nouns from the text
-    '''
-    out = []
-    extractor = pke.unsupervised.MultipartiteRank()
-    extractor.load_document(input=text, language='en')
-    pos = {'PROPN', 'NOUN'}
-    stoplist = list(string.punctuation)
-    stoplist += stopwords.words('english')
-    extractor.candidate_selection(pos=pos)
-    # 4. build the Multipartite graph and rank candidates using random walk,
-    #    alpha controls the weight adjustment mechanism, see TopicRank for
-    #    threshold/method parameters.
+    """
+    Extract the top 10 noun and proper noun phrases from a text using the MultipartiteRank algorithm.
+
+    Args:
+        text (str): The input text.
+
+    Returns:
+        list: The top 10 noun and proper noun phrases extracted from the text.
+    """
+    ans = []
+
     try:
-        extractor.candidate_weighting(alpha=1.1,threshold=0.75,method='average')
+        e = pke.unsupervised.MultipartiteRank()
+        e.load_document(input=text, language='en',stoplist=list(string.punctuation) + stopwords.words('english'))
+        e.candidate_selection(pos={'PROPN', 'NOUN'})
+        e.candidate_weighting(alpha=1.1, threshold=0.75, method='average')
+        keyph = e.get_n_best(n=10)
+        ans=[key[0] for key in keyph]
     except:
-        return out
-    keyphrases = extractor.get_n_best(n=10)
-    for key in keyphrases:
-        out.append(key[0])
-    return out
+        pass
+
+    return ans
 
 
 def get_phrases(doc):
-    '''
-    Gives the longest phrasal nouns of a text stored in a dictionary format with the 
-    phrases being the keys and their count being the value
-    '''
-    phrases={}
-    for np in doc.noun_chunks:
-        phrase =np.text
-        len_phrase = len(phrase.split())
-        if len_phrase > 1:
-            if phrase not in phrases:
-                phrases[phrase]=1
+    """
+    Extract up to 50 longest noun phrases from a spaCy document object.
+
+    Args:
+        doc (spacy.tokens.Doc): The spaCy document object.
+
+    Returns:
+        list: The up to 50 most frequent noun phrases in the document.
+    """
+    ph = {}
+    for noun in doc.noun_chunks:
+        p = noun.text
+        if len(p.split()) > 1:
+            if p not in ph:
+                ph[p] = 1
             else:
-                phrases[phrase]=phrases[phrase]+1
-    phrase_keys=list(phrases.keys())
-    phrase_keys = sorted(phrase_keys, key= lambda x: len(x),reverse=True)
-    phrase_keys=phrase_keys[:50]
-    return phrase_keys
+                ph[p] += 1
 
+    ph_keys = sorted(list(ph.keys()), key=lambda x: len(x), reverse=True)[:50]
+    return ph_keys
 
-def get_keywords(nlp,text,max_keywords,s2v,fdist,no_of_sentences):
-    doc = nlp(text)
-    max_keywords = int(max_keywords)
-    keywords = get_nouns_multipartite(text)
-    keywords = sorted(keywords, key=lambda x: fdist[x])
-    keywords = filter_phrases(keywords, max_keywords)
-    phrase_keys = get_phrases(doc)
-    filtered_phrases = filter_phrases(phrase_keys, max_keywords)
-    total_phrases = keywords + filtered_phrases
-    total_phrases_filtered = filter_phrases(total_phrases, min(max_keywords, 2*no_of_sentences))
-    answers = []
-    for answer in total_phrases_filtered:
-        if answer not in answers and MCQs_available(answer,s2v):
-            answers.append(answer)
-    answers = answers[:max_keywords]
-    return answers
+def get_keywords(nlp, text, max, s2v, fd, nos):
+    """
+    Extract up to max_keywords keywords from a given text using a combination of
+    approaches, including MultipartiteRank, noun phrases, and filtering.
+
+    Args:
+        nlp : The  model to use for text processing.
+        text (str): The input text to extract keywords from.
+        max (int): The maximum number of keywords to return.
+        s2v : The sense2vec model to use for filtering out irrelevant keywords.
+        fd : A frequency distribution of words in the text.
+        nos (int): The number of sentences in the input text.
+
+    Returns:
+        list: The up to max_keywords most relevant keywords extracted from the text.
+    """
+
+    tp = filter_phrases(sorted(get_nouns_multipartite(text), key=lambda x: fd[x]), int(max)) + filter_phrases(get_phrases(nlp(text)), int(max))
+
+    tpf = filter_phrases(tp, min(int(max), 2*nos))
+
+    ans = []
+    for answer in tpf:
+        if answer not in ans:
+          if MCQs_available(answer, s2v):
+            ans.append(answer)
+
+    ans = ans[:int(max)]
+    return ans
 
 
 def generate_questions_mcq(keyword_sent_mapping,device,tokenizer,model,sense2vec):
