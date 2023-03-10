@@ -22,77 +22,84 @@ def MCQs_available(word,s2v):
     return (not (sense==None))
 
 
-def edits(word):
-    '''takes in a string and returns all the possible strings with an edit distance of one'''
-    ''' string.punctuation --> is a pre-initialized string  used as string contant and it returns all the sets of punctuation'''
+def edits(token):
+    '''
+    takes in a string and returns all the possible strings with an edit distance of one 
+    '''
+    alphabets_and_punctuations = string.ascii_lowercase + " " + string.punctuation
     
-    '''alph_punc --> storing all the alphabets and sets of punctuation( combiningly )'''
-    alph_punc=string.ascii_lowercase+" "+string.punctuation
-    '''word_split --> list of tuple storing the splitting of word into left and right part around a given pivot  
-       For Example : "a b" 
-       word_split stores : [('','a b'),('a',' b'),('a ','b'),('a b','')]'''
-    size=len(word)
-    word_split=[]
-    for j in range(size+1):
-        left=word[:j]
-        right=word[j:]
-        word_split.append((left,right))    
-    ''' del_word --> list of word by deleting the first character of right substring but right substring must be 
-    non-empty '''
-    del_word=[]
-    for left,right in word_split:
-        if(len(right)!=0):
-            fin_word=left+right[1:]
-            del_word.append(fin_word)
-    '''adj_word --> list of words by swapping the adjacent character in every non-empty  right substring of a given 
-    input word . '''
-    adj_word=[]
-    for left,right in word_split: 
-        if(len(right)>1):
-            fin_word=left+right[1]+right[0]+right[2:]
-            adj_word.append(fin_word)
-    '''rep_word --> list of words by substituting all available letters from a predetermined set of letters for each character
-    in each non-empty right-side substring of a given input word'''
-    rep_word=[]
-    for left,right in word_split:
-        if(len(right)!=0):
-            for i in alph_punc:
-                fin_word=left+i+right[1:]
-                rep_word.append(fin_word)
-    ''' ins_word --> list of word by substituting all available letters from a ppredetermined '''
-    ins_word=[]
-    for left,right in word_split:
-        for alphabet in alph_punc:
-            fin_word=left+alphabet+right
-            ins_word.append(fin_word)
-    return set(del_word+adj_word+rep_word+ins_word) 
+    final_tokens = []
+    for i in range(len(token)+1):    # splits token into all possible pairs of left and right substrings
+        left = token[:i]
+        right = token[i:]
+        
+        if len(right) != 0:     # list of words by deleting each non-empty right substring of a given input word
+            fin_token = left + right[1:]
+            final_tokens.append(fin_token)
+
+        if len(right) > 1:      # list of words by swapping the adjacent character in every non-empty right substring of a given word
+            fin_token = left + right[1] + right[0] + right[2:]
+            final_tokens.append(fin_token)
+        
+        if len(right) != 0:     # list of words by replacing each character in every non-empty right substring of a given word
+            for alpha_punct in alphabets_and_punctuations:
+                fin_token = left + alpha_punct + right[1:]
+                final_tokens.append(fin_token)
+        
+        for alphabet in alphabets_and_punctuations:     # list of words by inserting each character in every possible position of every non-empty right substring of a given word
+            fin_token = left + alphabet + right
+            final_tokens.append(fin_token)
+    
+    return set(final_tokens)
 
 
-def sense2vec_get_words(word,s2v):
+def sense2vec_get_words(token, sense_object):
     '''
     Takes a word and returns all the words in the database that are similar to the given word
     with the same sense. In case of multiple words it returns at most 15 words ordered in 
     descending order by their closeness. The best match word comes before.
     '''
-    output = []
-    word_preprocessed =  word.translate(word.maketrans("","", string.punctuation))
-    word_preprocessed = word_preprocessed.lower()
-    word_edits = edits(word_preprocessed)
-    word = word.replace(" ", "_")
-    sense = s2v.get_best_sense(word)
-    if sense==None:
-        return None,"None"
-    most_similar = s2v.most_similar(sense, n=15)
-    compare_list = [word_preprocessed]
-    for each_word in most_similar:
-        append_word = ((each_word[0].split("|")[0].replace("_", " ")).strip()).lower()
-        append_word = append_word.translate(append_word.maketrans("","", string.punctuation))
-        if append_word not in compare_list and word_preprocessed not in append_word and append_word not in word_edits:
-            output.append(append_word.title())
-            compare_list.append(append_word)
-    out = list(OrderedDict.fromkeys(output))
-    print(out)
-    return out,"sense2vec"
+    result = []
+    processed_tokens = token.translate(token.maketrans("","", string.punctuation)).lower()
+
+    token_edits = edits(processed_tokens)
+    token = token.replace(" ", "_")
+    sense = sense_object.get_best_sense(token)
+
+    if sense == None:
+        return None, "None"
+    
+    similar_tokens = sense_object.most_similar(sense, n = 15)
+    cmp_lst = []
+    cmp_lst.append(processed_tokens)
+
+    for each_token in similar_tokens:
+        temp = each_token[0].split("|")[0].replace("_", " ")
+        temp = temp.strip().lower()
+        temp = temp.translate(temp.maketrans("","", string.punctuation))
+        if temp not in cmp_lst:
+            if processed_tokens not in temp:
+                if temp not in token_edits:
+                    result.append(temp.title())
+                    cmp_lst.append(temp)
+    
+    out = list(OrderedDict.fromkeys(result))
+
+    return out, "sense2vec"
+
+
+def tokenize_sentences(text):
+    ''' 
+    function takes text as a input string and performs string tokenization on it
+    and returns the list of sentences
+    '''
+    sent = sent_tokenize(text)
+    fin_sent = []
+    for i in sent:
+        if len(i) > 20:
+            fin_sent.append(i)
+    
+    return fin_sent
 
 
 def tokenize_sentences(text):
