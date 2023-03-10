@@ -22,7 +22,7 @@ def is_possible(element,sense_object):
     return (not (value==None))
 
 
-def edits(token):
+def one_apart(token):
     '''
     takes in a string and returns all the possible strings with an edit distance of one 
     '''
@@ -53,7 +53,7 @@ def edits(token):
     return set(final_tokens)
 
 
-def sense2vec_get_words(token, sense_object):
+def words_similar(token, sense_object):
     '''
     Takes a word and returns all the words in the database that are similar to the given word
     with the same sense. In case of multiple words it returns at most 15 words ordered in 
@@ -62,7 +62,7 @@ def sense2vec_get_words(token, sense_object):
     result = []
     processed_tokens = token.translate(token.maketrans("","", string.punctuation)).lower()
 
-    token_edits = edits(processed_tokens)
+    token_edits = one_apart(processed_tokens)
     token = token.replace(" ", "_")
     sense = sense_object.get_best_sense(token)
 
@@ -88,7 +88,7 @@ def sense2vec_get_words(token, sense_object):
     return out, "sense2vec"
 
 
-def tokenize_sentences(text):
+def para_to_sentences(text):
     ''' 
     function takes text as a input string and performs string tokenization on it
     and returns the list of sentences
@@ -102,7 +102,7 @@ def tokenize_sentences(text):
     return fin_sent
 
 
-def is_far(elements,this_item,max_val):
+def distance(elements,this_item,max_val):
     '''
     Calculates the normalized edit distance between the currentword and elements of words_list.
     if all the words have a distance greater than a threshhold then returns true else false
@@ -113,7 +113,7 @@ def is_far(elements,this_item,max_val):
     return min_val>=max_val
 
 
-def get_sentences_for_keyword(k, s):
+def generate_sentences(k, s):
     kp = KeywordProcessor()
     ans = {}
     #initializing dictionary
@@ -137,7 +137,7 @@ def get_sentences_for_keyword(k, s):
     return ans
 
 
-def filter_phrases(ph_keys, max_phrases):
+def select_main(ph_keys, max_phrases):
     """
     Filter a list of phrases to a maximum number based on a scoring metric.
 
@@ -150,7 +150,7 @@ def filter_phrases(ph_keys, max_phrases):
     """
     ans = [ph_keys[0]] if len(ph_keys) > 0 else []
     for phrase in ph_keys[1:]:
-        if is_far(ans, phrase, 0.71) and len(ans) < max_phrases:
+        if distance(ans, phrase, 0.71) and len(ans) < max_phrases:
             ans.append(phrase)
         if len(ans) >= max_phrases:
             break
@@ -158,7 +158,7 @@ def filter_phrases(ph_keys, max_phrases):
 
 
 
-def get_nouns_multipartite(text):
+def find_subjects(text):
     """
     Extract the top 10 noun and proper noun phrases from a text using the MultipartiteRank algorithm.
 
@@ -183,7 +183,7 @@ def get_nouns_multipartite(text):
     return ans
 
 
-def get_phrases(doc):
+def generate_phrasal_words(doc):
     """
     Extract up to 50 longest noun phrases from a spaCy document object.
 
@@ -205,7 +205,7 @@ def get_phrases(doc):
     ph_keys = sorted(list(ph.keys()), key=lambda x: len(x), reverse=True)[:50]
     return ph_keys
 
-def get_keywords(nlp, text, max, s2v, fd, nos):
+def find_keys(nlp, text, max, s2v, fd, nos):
     """
     Extract up to max_keywords keywords from a given text using a combination of
     approaches, including MultipartiteRank, noun phrases, and filtering.
@@ -222,9 +222,9 @@ def get_keywords(nlp, text, max, s2v, fd, nos):
         list: The up to max_keywords most relevant keywords extracted from the text.
     """
 
-    tp = filter_phrases(sorted(get_nouns_multipartite(text), key=lambda x: fd[x]), int(max)) + filter_phrases(get_phrases(nlp(text)), int(max))
+    tp = select_main(sorted(find_subjects(text), key=lambda x: fd[x]), int(max)) + select_main(generate_phrasal_words(nlp(text)), int(max))
 
-    tpf = filter_phrases(tp, min(int(max), 2*nos))
+    tpf = select_main(tp, min(int(max), 2*nos))
 
     ans = []
     for answer in tpf:
@@ -262,7 +262,7 @@ def generate_questions_mcq(keyword_sent_mapping,device,tokenizer,model,sense2vec
         individual_question["question_type"] = "MCQ"
         individual_question["answer"] = val
         individual_question["id"] = index+1
-        individual_question["options"], individual_question["options_algorithm"] = sense2vec_get_words(val, sense2vec)
+        individual_question["options"], individual_question["options_algorithm"] = words_similar(val, sense2vec)
 
         individual_question["options"] =  filter_phrases(individual_question["options"], 10)
         index = 3
@@ -290,12 +290,12 @@ text+="of mathematics. This Golden Age encompasses the lifetime of Euclid."
 nlp = spacy.load('en_core_web_md')
 doc = nlp(text)
 f=FreqDist(brown.words())
-k=get_keywords(nlp,text,10,s2v,f,10)
-sentences=tokenize_sentences(text)
-ksm=get_sentences_for_keyword(k,sentences)
-for lund in ksm.keys():
-    text_snippet = " ".join(ksm[lund][:3])
-    ksm[lund] = text_snippet
+k=find_keys(nlp,text,10,s2v,f,10)
+sentences=para_to_sentences(text)
+ksm=generate_sentences(k,sentences)
+for tempvar in ksm.keys():
+    text_snippet = " ".join(ksm[tempvar][:3])
+    ksm[tempvar] = text_snippet
 tokenizer = T5Tokenizer.from_pretrained('t5-base')
 model = T5ForConditionalGeneration.from_pretrained('Parth/result')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
