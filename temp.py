@@ -13,7 +13,7 @@ import pke.unsupervised
 import torch
 import spacy
 
-def MCQs_available(element,sense_object):
+def is_possible(element,sense_object):
     '''
     Takes in a word nd tells the sense of the word. Example- boy-NOUN, John-PROPN(proper noun)
     '''
@@ -229,7 +229,7 @@ def get_keywords(nlp, text, max, s2v, fd, nos):
     ans = []
     for answer in tpf:
         if answer not in ans:
-          if MCQs_available(answer, s2v):
+          if is_possible(answer, s2v):
             ans.append(answer)
     return ans[:int(max)]
 
