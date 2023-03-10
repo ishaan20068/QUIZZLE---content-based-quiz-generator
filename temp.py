@@ -13,13 +13,13 @@ import pke.unsupervised
 import torch
 import spacy
 
-def MCQs_available(word,s2v):
+def MCQs_available(element,sense_object):
     '''
     Takes in a word nd tells the sense of the word. Example- boy-NOUN, John-PROPN(proper noun)
     '''
-    word = word.replace(" ", "_")
-    sense = s2v.get_best_sense(word)
-    return (not (sense==None))
+    element = element.replace(" ", "_")
+    value = sense_object.get_best_sense(element)
+    return (not (value==None))
 
 
 def edits(token):
@@ -102,15 +102,15 @@ def tokenize_sentences(text):
     return fin_sent
 
 
-def is_far(words_list,currentword,threshold):
+def is_far(elements,this_item,max_val):
     '''
     Calculates the normalized edit distance between the currentword and elements of words_list.
     if all the words have a distance greater than a threshhold then returns true else false
     '''
-    min_score=1000000000
-    for word in words_list:
-        min_score=min(min_score,NormalizedLevenshtein().distance(word.lower(),currentword.lower()))
-    return min_score>=threshold
+    min_val=1000000000
+    for x in elements:
+        min_val=min(min_val,NormalizedLevenshtein().distance(x.lower(),this_item.lower()))
+    return min_val>=max_val
 
 
 def get_sentences_for_keyword(k, s):
