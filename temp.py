@@ -1,17 +1,28 @@
-import string
-from flashtext import KeywordProcessor
-from sense2vec import Sense2Vec
-from collections import OrderedDict
-from nltk.tokenize import sent_tokenize
-from nltk import FreqDist
-from nltk.corpus import brown
-from similarity.normalized_levenshtein import NormalizedLevenshtein
-from nltk.corpus import stopwords
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import time
 import torch
 from transformers import T5ForConditionalGeneration,T5Tokenizer
-import pke.unsupervised
-import torch
+import random
 import spacy
+import zipfile
+import os
+import json
+from sense2vec import Sense2Vec
+import requests
+from collections import OrderedDict
+import string
+import pke
+import nltk
+from nltk import FreqDist
+nltk.download('brown')
+nltk.download('stopwords')
+nltk.download('popular')
+from nltk.corpus import stopwords
+from nltk.corpus import brown
+from similarity.normalized_levenshtein import NormalizedLevenshtein
+from nltk.tokenize import sent_tokenize
+from flashtext import KeywordProcessor
 
 def is_possible(element,sense_object):
     '''
@@ -140,11 +151,9 @@ def generate_sentences(k, s):
 def select_main(ph_keys, max_phrases):
     """
     Filter a list of phrases to a maximum number based on a scoring metric.
-
     Args:
         ph_keys (list): A list of phrases to filter.
         max_phrases (int): The maximum number of phrases to return.
-
     Returns:
         list: The filtered list of phrases, containing at most max_phrases phrases.
     """
@@ -161,10 +170,8 @@ def select_main(ph_keys, max_phrases):
 def find_subjects(text):
     """
     Extract the top 10 noun and proper noun phrases from a text using the MultipartiteRank algorithm.
-
     Args:
         text (str): The input text.
-
     Returns:
         list: The top 10 noun and proper noun phrases extracted from the text.
     """
@@ -186,10 +193,8 @@ def find_subjects(text):
 def generate_phrasal_words(doc):
     """
     Extract up to 50 longest noun phrases from a spaCy document object.
-
     Args:
         doc (spacy.tokens.Doc): The spaCy document object.
-
     Returns:
         list: The up to 50 most frequent noun phrases in the document.
     """
@@ -209,7 +214,6 @@ def find_keys(nlp, text, max, s2v, fd, nos):
     """
     Extract up to max_keywords keywords from a given text using a combination of
     approaches, including MultipartiteRank, noun phrases, and filtering.
-
     Args:
         nlp : The  model to use for text processing.
         text (str): The input text to extract keywords from.
@@ -217,7 +221,6 @@ def find_keys(nlp, text, max, s2v, fd, nos):
         s2v : The sense2vec model to use for filtering out irrelevant keywords.
         fd : A frequency distribution of words in the text.
         nos (int): The number of sentences in the input text.
-
     Returns:
         list: The up to max_keywords most relevant keywords extracted from the text.
     """
@@ -264,7 +267,7 @@ def generate_questions_mcq(keyword_sent_mapping,device,tokenizer,model,sense2vec
         individual_question["id"] = index+1
         individual_question["options"], individual_question["options_algorithm"] = words_similar(val, sense2vec)
 
-        individual_question["options"] =  filter_phrases(individual_question["options"], 10)
+        individual_question["options"] =  select_main(individual_question["options"], 10)
         index = 3
         individual_question["extra_options"]= individual_question["options"][index:]
         individual_question["options"] = individual_question["options"][:index]
@@ -287,12 +290,14 @@ text+="Alexandrian Age. This was a time when mathematicians were discovering man
 text+="that led to our current conception of mathematics. The era is considered silver "
 text+="because it came after the Golden Age, a time of great development in the field "
 text+="of mathematics. This Golden Age encompasses the lifetime of Euclid."
-nlp = spacy.load('en_core_web_md')
+nlp = spacy.load('en_core_web_sm')
+text="Sachin Ramesh Tendulkar is a former international cricketer from India and a former captain of the Indian national team. He is widely regarded as one of the greatest batsmen in the history of cricket. He is the highest run scorer of all time in International cricket."
 doc = nlp(text)
 f=FreqDist(brown.words())
 k=find_keys(nlp,text,10,s2v,f,10)
 sentences=para_to_sentences(text)
 ksm=generate_sentences(k,sentences)
+print(ksm)
 for tempvar in ksm.keys():
     text_snippet = " ".join(ksm[tempvar][:3])
     ksm[tempvar] = text_snippet
